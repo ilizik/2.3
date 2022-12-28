@@ -15,14 +15,34 @@ from openpyxl.utils import get_column_letter
 
 class OtherMethods:
     """Класс, содержащий в себе вспомогатильные функции которые могут быть переиспользованы"""
+
     @staticmethod
     def delete_rubbish(s: str) -> str:
         """Удаляет html теги и лишние пробелы из строки
         :param s: Строка для чистки
         :return: Очищенная строка
+
+        >>> OtherMethods.delete_rubbish('<strong>Test string</strong>')
+        'Test string'
+        >>> OtherMethods.delete_rubbish('     <p>Test    string   </p>')
+        'Test string'
+        >>> OtherMethods.delete_rubbish('Test string')
+        'Test string'
         """
         clear = re.compile('<.*?>')
         return ' '.join(re.sub(clear, '', s).split()).strip()
+
+    @staticmethod
+    def normalize_label(label: str) -> str:
+        """Форматирует подписи круговой даиграммы
+        :param label: Подпись
+        :return: Отформатированная подпись
+        """
+        spaces = re.compile('\s+')
+        line = re.compile('-+')
+
+        label = re.sub(spaces, '\n', label)
+        return re.sub(line, '-\n', label)
 
 
 class Salary:
@@ -41,16 +61,36 @@ class Salary:
     }
 
     def __float__(self) -> float:
-        """Преобразует зарплату к float значению в рублях"""
-        return (float(self.__salary_from) + float(self.__salary_to)) / 2 * self.currency_to_rub[
-            self.__salary_currency.upper()]
+        """Преобразует зарплату к float значению в рублях
+
+        >>> float(Salary([10.0, 20.0, 'RUR']))
+        15.0
+        >>> float(Salary([10.0, 20, 'RUR']))
+        15.0
+        >>> float(Salary([10, 20.0, 'RUR']))
+        15.0
+        >>> float(Salary([10.0, 30.0, 'EUR']))
+        1198.0
+        """
+        return (float(self.salary_from) + float(self.salary_to)) / 2 * self.currency_to_rub[
+            self.salary_currency.upper()]
 
     def __init__(self, values: List[str]):
         """Инициализирует объект Salary
         Args:
             values (List[str]): Нижняя граница оклада, верхняя граница оклада, валюта оклада
+
+        >>> type(Salary([10.0, 15.0, 'RUR'])).__name__
+        'Salary'
+        >>> Salary([10.0, 15.0, 'RUR']).salary_from
+        10.0
+        >>> Salary([10.0, 15.0, 'RUR']).salary_to
+        15.0
+        >>> Salary([10.0, 15.0, 'RUR']).salary_currency
+        'RUR'
         """
-        [self.__salary_from, self.__salary_to, self.__salary_currency] = values
+        [self.salary_from, self.salary_to, self.salary_currency] \
+            = [float(values[0]), float(values[1]), values[2]]
 
 
 class Vacancy:
@@ -60,6 +100,17 @@ class Vacancy:
         """Инициализирует объект класса Vacancy
         :param row: Строка с вакансией из csv файла
         :param title: Названия столбцов csv файла
+
+        >>> type(Vacancy(['Руководитель', '<strong>Обязанности:</strong>', 'Организаторские', 'between3And6', 'FALSE', 'ПМЦ Авангард', '80000', '100000', 'FALSE', 'RUR', 'Санкт-Петербург', '2022-07-17T18:23:06+0300'], ['name', 'description', 'key_skills', 'experience_id', 'premium', 'employer_name', 'salary_from', 'salary_to', 'salary_gross', 'salary_currency', 'area_name', 'published_at'])).__name__
+        'Vacancy'
+        >>> Vacancy(['Руководитель', '<strong>Обязанности:</strong>', 'Организаторские', 'between3And6', 'FALSE', 'ПМЦ Авангард', '80000', '100000', 'FALSE', 'RUR', 'Санкт-Петербург', '2022-07-17T18:23:06+0300'], ['name', 'description', 'key_skills', 'experience_id', 'premium', 'employer_name', 'salary_from', 'salary_to', 'salary_gross', 'salary_currency', 'area_name', 'published_at']).get_salary()
+        90000.0
+        >>> Vacancy(['Руководитель', '<strong>Обязанности:</strong>', 'Организаторские', 'between3And6', 'FALSE', 'ПМЦ Авангард', '80000', '100000', 'FALSE', 'RUR', 'Санкт-Петербург', '2022-07-17T18:23:06+0300'], ['name', 'description', 'key_skills', 'experience_id', 'premium', 'employer_name', 'salary_from', 'salary_to', 'salary_gross', 'salary_currency', 'area_name', 'published_at']).get_area()
+        'Санкт-Петербург'
+        >>> Vacancy(['Руководитель', '<strong>Обязанности:</strong>', 'Организаторские', 'between3And6', 'FALSE', 'ПМЦ Авангард', '80000', '100000', 'FALSE', 'RUR', 'Санкт-Петербург', '2022-07-17T18:23:06+0300'], ['name', 'description', 'key_skills', 'experience_id', 'premium', 'employer_name', 'salary_from', 'salary_to', 'salary_gross', 'salary_currency', 'area_name', 'published_at']).get_date()
+        '2022'
+        >>> Vacancy(['Руководитель', '<strong>Обязанности:</strong>', 'Организаторские', 'between3And6', 'FALSE', 'ПМЦ Авангард', '80000', '100000', 'FALSE', 'RUR', 'Санкт-Петербург', '2022-07-17T18:23:06+0300'], ['name', 'description', 'key_skills', 'experience_id', 'premium', 'employer_name', 'salary_from', 'salary_to', 'salary_gross', 'salary_currency', 'area_name', 'published_at']).is_suitible('Руководитель')
+        True
         """
         self.__name = None
         self.__salary = None
@@ -76,7 +127,7 @@ class Vacancy:
             'salary_currency': lambda value: self.set_value('salary_currency', OtherMethods.delete_rubbish(value)),
             'area_name': lambda value: self.set_value('area_name', OtherMethods.delete_rubbish(value)),
             'published_at': lambda value: self.set_value('published_at',
-                                                         Vacancy.__get_date(OtherMethods.delete_rubbish(value))),
+                                                           Vacancy.__get_date(OtherMethods.delete_rubbish(value))),
         }
 
         for i, field in enumerate(row):
@@ -128,15 +179,19 @@ class DataSet:
     """Класс, представляющий набор данных обо всех вакансиях"""
 
     def __init__(self, file_name: str):
-        """Инициализирует объект Dataset
-        :param file_name: Название файла
         """
-        self.__file_name = file_name
+        Инициализирует объект Dataset
+        :param file_name: Название файла
+        >>> type(DataSet('tests/test.csv')).__name__
+        'DataSet'
+        >>> DataSet('tests/test.csv').len
+        1
+        """
         self.__vacancies_objects: List[Vacancy] = []
         self.__title = None
         self.__vacancies_years = {}
         self.__vacancies_areas = {}
-        self.__len = 0
+        self.len = 0
 
         with open(file_name, mode='r', encoding='utf-8-sig') as vacancies:
             file_reader = csv.reader(vacancies, delimiter=",")
@@ -152,7 +207,7 @@ class DataSet:
                     continue
 
                 self.validate_vacancy(row)
-                self.__len += 1
+                self.len += 1
 
     def get_vacancies_years(self, func=None) -> Dict[str, List[int]]:
         """Создает словарь с ключами-годами и значениями - массивами из зарплат в соответствии с фильтрующей функцией
@@ -179,7 +234,7 @@ class DataSet:
         fract = []
 
         for key, value in self.__vacancies_areas.items():
-            percent = round(len(value) / self.__len, 4)
+            percent = round(len(value) / self.len, 4)
             if percent < 0.01:
                 continue
 
@@ -361,9 +416,11 @@ class Report:
 
         for i in range(count):
             row = []
+
             row += [cities_s[i][0], cities_s[i][1]] if len(cities_s) >= i + 1 else ['', '']
             row += ['']
             row += [fract[i][0], fract[i][1]] if len(fract) >= i + 1 else ['', '']
+
             ws.append(row)
 
         Report.add_percentage(ws, count, 'E')
@@ -450,8 +507,14 @@ class Report:
         plt.show()
 
     @staticmethod
-    def create_bar(ax, data1: Dict[str, List[int]], data2: Dict[str, List[int]], index: int,
-                   legend: List[str], title: str):
+    def create_bar(
+            ax,
+            data1: Dict[str, List[int]],
+            data2: Dict[str, List[int]],
+            index: int,
+            legend: List[str],
+            title: str
+    ):
         """Создает столбчатую диаграмму
         :param ax: ax
         :param data1: Словарь с ключами-годами и значениями - массивами из зарплат
@@ -484,7 +547,7 @@ class Report:
         :param data: Массив с долями вакансий по городам
         :param title: Название диаграммы
         """
-        cities = list(map(lambda x: Report.normalize_label(x[0]), data))
+        cities = list(map(lambda x: OtherMethods.normalize_label(x[0]), data))
         y_pos = list(range(len(cities)))
         ax.barh(y_pos, list(map(lambda x: x[1], data)), align='center')
         ax.set_yticks(y_pos, labels=cities, fontsize=6)
@@ -498,29 +561,19 @@ class Report:
 
     @staticmethod
     def create_round(ax, data: List[List[float]], title: str):
-        """Создает круговую диаграмму
+        """
+        Метод для создания круговой диаграммы
         :param ax: ax
         :param data: Массив с долями вакансий
         :param title: Название диаграммы
         """
         cities = list(map(lambda x: x[0], data)) + ['Другие']
         others = 1 - reduce(lambda x, y: x + y[1], data, 0)
+
         ax.pie(list(map(lambda x: x[1], data)) + [others],
                labels=cities, textprops={'size': 6}, colors=mcolors.BASE_COLORS)
 
         ax.set_title(title)
-
-    @staticmethod
-    def normalize_label(label: str) -> str:
-        """Создает подписи круговой даиграммы
-        :param label: Подпись
-        :return: Отформатированная подпись
-        """
-        spaces = re.compile('\s+')
-        line = re.compile('-+')
-
-        label = re.sub(spaces, '\n', label)
-        return re.sub(line, '-\n', label)
 
     @staticmethod
     def get_data(data: Dict[str, List[int]], i: int) -> List[int]:
@@ -610,17 +663,26 @@ class Console:
         print('}')
 
 
-connect = Console()
-connect.read_console()
-dataset = DataSet(connect.file_name)
-salariess = dataset.get_vacancies_years()
-salaries_filter = dataset.get_vacancies_years(lambda x: x.is_suitible(connect.vacancy))
-fraction, cities_salaries = dataset.get_vacancies_cities()
-report = Report(connect.vacancy, salariess, salaries_filter, fraction, cities_salaries)
+if __name__ == '__main__':
+    connect = Console()
+    connect.read_console()
 
-if connect.method.lower() != 'статистика':
-    report.generate_excel()
-    report.generate_png()
-else:
-    connect.write_console(salariess, salaries_filter, fraction, cities_salaries)
-    report.generate_excel()
+    dataset = DataSet(connect.file_name)
+
+    salaries_all = dataset.get_vacancies_years()
+    salaries_filter = dataset.get_vacancies_years(lambda x: x.is_suitible(connect.vacancy))
+    fraction, cities_salaries = dataset.get_vacancies_cities()
+
+    report = Report(connect.vacancy,
+                 salaries_all,
+                 salaries_filter,
+                 fraction,
+                 cities_salaries
+                 )
+
+    if connect.method.lower() != 'статистика':
+        report.generate_excel()
+        report.generate_png()
+    else:
+        connect.write_console(salaries_all, salaries_filter, fraction, cities_salaries)
+        report.generate_excel()
